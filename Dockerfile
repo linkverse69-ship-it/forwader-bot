@@ -11,3 +11,5 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app
 
 CMD ["python", "start.py"]
+
+#mongodb+srv://leakverse:leakverse@cluster0.vxosxyk.mongodb.net/?appName=Cluster0
