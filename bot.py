@@ -108,24 +108,52 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif query.data == "reset_settings":
-        await users_collection.delete_one({"user_id": user_id})
+        # Get existing user data to preserve session_string
+        user_data = await users_collection.find_one({"user_id": user_id})
+        
+        if user_data and user_data.get("session_string"):
+            # Preserve only the session_string
+            session_string = user_data["session_string"]
+            
+            # Delete all user data
+            await users_collection.delete_one({"user_id": user_id})
+            
+            # Re-insert with only user_id and session_string
+            await users_collection.insert_one({
+                "user_id": user_id,
+                "session_string": session_string
+            })
+            
+            await query.message.reply_text(
+                "Your bot settings have been reset successfully.\n"
+                "Your session has been preserved - you won't need to login again.\n\n"
+                "Click 'Login Now' to reconfigure your bots and channel.",
+                reply_markup=get_welcome_keyboard()
+            )
+        else:
+            # No session exists, just delete everything
+            await users_collection.delete_one({"user_id": user_id})
+            await query.message.reply_text(
+                "Your settings have been reset successfully.\n"
+                "Click 'Login Now' to configure new settings.",
+                reply_markup=get_welcome_keyboard()
+            )
+        
+        # Reset state
         user_states[user_id] = UserState.IDLE
         
+        # Stop active forwarder if running
         if user_id in active_forwarders:
             active_forwarders[user_id]["stop"] = True
             del active_forwarders[user_id]
         
+        # Disconnect any active client during auth
         if user_id in user_clients:
             try:
-                await user_clients[user_id].disconnect()
+                await user_clients[user_id]["client"].disconnect()
             except:
                 pass
             del user_clients[user_id]
-        
-        await query.message.reply_text(
-            "Your settings have been reset successfully. You can configure new settings by clicking Login Now.",
-            reply_markup=get_welcome_keyboard()
-        )
     
     elif query.data == "extract_session":
         user_data = await users_collection.find_one({"user_id": user_id})
@@ -150,6 +178,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user_data or not user_data.get("session_string"):
             await query.message.reply_text(
                 "Please complete the login process first.",
+                reply_markup=get_welcome_keyboard()
+            )
+            return
+        
+        # Check if all required fields are present
+        if not all(key in user_data for key in ["bot_username", "private_channel_id", "second_bot_username"]):
+            await query.message.reply_text(
+                "Configuration incomplete. Please click 'Login Now' to set up your bots and channel.",
                 reply_markup=get_welcome_keyboard()
             )
             return
@@ -249,9 +285,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             {"$set": user_data}
         )
         
-        # Now start Telegram authentication
-        user_states[user_id] = UserState.WAITING_PHONE
-        await update.message.reply_text("Enter your phone number with country code.\nExample: +1234567890")
+        # Check if session_string already exists
+        if user_data.get("session_string"):
+            # Session exists, skip authentication
+            await update.message.reply_text(
+                f"✅ Configuration Complete!\n\n"
+                f"Source: {user_data['bot_username']}\n"
+                f"Channel: {user_data['private_channel_id']}\n"
+                f"Destination: {user_data['second_bot_username']}\n\n"
+                "Using your existing session.\n"
+                "Click 'Start Forwarder' to begin.",
+                reply_markup=get_welcome_keyboard()
+            )
+            user_states[user_id] = UserState.IDLE
+        else:
+            # No session, start Telegram authentication
+            user_states[user_id] = UserState.WAITING_PHONE
+            await update.message.reply_text("Enter your phone number with country code.\nExample: +1234567890")
     
     elif user_states[user_id] == UserState.WAITING_PHONE:
         phone = text.strip()
