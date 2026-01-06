@@ -567,9 +567,14 @@ def make_video_thumb_ffmpeg(video_path: str) -> Optional[str]:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
         if os.path.exists(thumb_path) and os.path.getsize(thumb_path) > 0:
+            print(f"Thumbnail generated at: {thumb_path} size: {os.path.getsize(thumb_path)}")
             return thumb_path
-    except Exception:
-        pass
+        else:
+            print("Thumbnail generated but file empty or missing")
+    except Exception as e:
+        print(f"FFmpeg thumbnail generation failed: {e}")
+        import traceback
+        traceback.print_exc()
     return None
 
 
@@ -653,6 +658,7 @@ async def upload_media(
     thumb_path = None
     if media_type == "video":
         thumb_path = make_video_thumb_ffmpeg(path)
+        print(f"Thumb path for upload: {thumb_path}")
     
     start_time = time.time()
     last_update = 0
