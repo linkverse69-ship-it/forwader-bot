@@ -15,6 +15,9 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError, SessionPasswordNeededError
 from telethon.tl.custom.message import Message
 from telethon.sessions import StringSession
+from telethon.tl.types import DocumentAttributeVideo
+from hachoir.metadata import extractMetadata
+from hachoir.parser import createParser
 
 
 MONGO_URI = "mongodb+srv://leakverse:leakverse@cluster0.vxosxyk.mongodb.net/?appName=Cluster0"
@@ -570,6 +573,24 @@ def make_video_thumb_ffmpeg(video_path: str) -> Optional[str]:
     return None
 
 
+def get_video_metadata(video_path: str):
+    width = 0
+    height = 0
+    duration = 0
+    try:
+        parser = createParser(video_path)
+        metadata = extractMetadata(parser)
+        if metadata.has("duration"):
+            duration = metadata.get('duration').seconds
+        if metadata.has("width"):
+            width = metadata.get("width")
+        if metadata.has("height"):
+            height = metadata.get("height")
+    except Exception as e:
+        print(f"Error getting metadata: {e}")
+    return width, height, duration
+
+
 async def download_media(
     client: TelegramClient,
     msg: Message,
@@ -660,12 +681,19 @@ async def upload_media(
                 force_document=False,
             )
         elif media_type == "video":
+            width, height, duration = get_video_metadata(path)
             sent = await client.send_file(
                 channel_id,
                 path,
                 progress_callback=progress_callback,
                 force_document=False,
                 supports_streaming=True,
+                attributes=[DocumentAttributeVideo(
+                    duration=duration,
+                    w=width,
+                    h=height,
+                    supports_streaming=True
+                )],
                 thumb=thumb_path if thumb_path else None,
             )
         else:
