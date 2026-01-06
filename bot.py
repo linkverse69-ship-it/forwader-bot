@@ -21,7 +21,7 @@ from hachoir.parser import createParser
 
 
 MONGO_URI = "mongodb+srv://leakverse:leakverse@cluster0.vxosxyk.mongodb.net/?appName=Cluster0"
-TELEGRAM_BOT_TOKEN = "8498816152:AAHc34lQ_s_wEOFA_jex8IItB8AfMpMB3nM"
+TELEGRAM_BOT_TOKEN = "8406631543:AAGqm0IbWVUO6oYSgKb3WDBx69bT6CCYFsc"
 API_ID = 12380656
 API_HASH = "d927c13beaaf5110f25c505b7c071273"
 
