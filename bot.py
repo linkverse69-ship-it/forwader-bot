@@ -46,6 +46,7 @@ class UserState:
     WAITING_PHONE = "waiting_phone"
     WAITING_CODE = "waiting_code"
     WAITING_PASSWORD = "waiting_password"
+    WAITING_SESSION_STRING = "waiting_session_string"
 
 
 def is_admin(user_id: int) -> bool:
@@ -55,6 +56,8 @@ def is_admin(user_id: int) -> bool:
 def get_welcome_keyboard():
     keyboard = [
         [InlineKeyboardButton("Login Now", callback_data="login_start")],
+        [InlineKeyboardButton("Reset", callback_data="reset_data")],
+        [InlineKeyboardButton("Add Session", callback_data="add_session")],
         [InlineKeyboardButton("Reset Settings", callback_data="reset_settings")],
         [InlineKeyboardButton("Extract Session String", callback_data="extract_session")],
         [InlineKeyboardButton("Start Forwarder", callback_data="start_forwarder")],
@@ -106,6 +109,44 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Enter the source bot username.\n"
             "Example: @MediaSourceBot"
         )
+    
+    elif query.data == "reset_data":
+        user_data = await users_collection.find_one({"user_id": user_id})
+        
+        if user_id in active_forwarders:
+            active_forwarders[user_id]["stop"] = True
+            del active_forwarders[user_id]
+        
+        if user_id in user_clients:
+            try:
+                await user_clients[user_id]["client"].disconnect()
+            except:
+                pass
+            del user_clients[user_id]
+
+        session_string = None
+        if user_data and user_data.get("session_string"):
+            session_string = user_data["session_string"]
+
+        if session_string:
+            await users_collection.replace_one(
+                {"user_id": user_id},
+                {"user_id": user_id, "session_string": session_string},
+                upsert=True
+            )
+        else:
+            await users_collection.delete_one({"user_id": user_id})
+
+        user_states[user_id] = UserState.WAITING_BOT_USERNAME
+        await query.message.reply_text(
+            "Credentials have been reset. Session preserved (if any).\n"
+            "Please enter the source bot username.\n"
+            "Example: @MediaSourceBot"
+        )
+
+    elif query.data == "add_session":
+        user_states[user_id] = UserState.WAITING_SESSION_STRING
+        await query.message.reply_text("Please enter your session string.")
     
     elif query.data == "reset_settings":
         # Get existing user data to preserve session_string
@@ -403,6 +444,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         except Exception as e:
             await update.message.reply_text(f"Error: {str(e)}\nTry again.")
+
+    elif user_states[user_id] == UserState.WAITING_SESSION_STRING:
+        session_string = text.strip()
+        
+        try:
+            client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+            await client.connect()
+            
+            if not await client.is_user_authorized():
+                await client.disconnect()
+                await update.message.reply_text("Invalid or expired session string. Please try again.")
+                return
+
+            await users_collection.update_one(
+                {"user_id": user_id},
+                {"$set": {"session_string": session_string}},
+                upsert=True
+            )
+            
+            await client.disconnect()
+            
+            user_states[user_id] = UserState.IDLE
+            await update.message.reply_text(
+                "Logged in successfully",
+                reply_markup=get_welcome_keyboard()
+            )
+            
+        except Exception as e:
+            await update.message.reply_text(f"Error: {str(e)}\nPlease try again.")
 
 
 def format_size(bytes_value: int) -> str:
