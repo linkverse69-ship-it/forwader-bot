@@ -18,7 +18,7 @@ from telethon.sessions import StringSession
 
 
 MONGO_URI = "mongodb+srv://leakverse:leakverse@cluster0.vxosxyk.mongodb.net/?appName=Cluster0"
-TELEGRAM_BOT_TOKEN = "8406631543:AAGqm0IbWVUO6oYSgKb3WDBx69bT6CCYFsc"
+TELEGRAM_BOT_TOKEN = "6863982081:AAF-Xa7S_OgJ5TRYT_Qth_wyQ7AdjuX_eGM"
 API_ID = 12380656
 API_HASH = "d927c13beaaf5110f25c505b7c071273"
 
