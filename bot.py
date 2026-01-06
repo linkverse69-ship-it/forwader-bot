@@ -76,24 +76,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Access denied. This bot is restricted to authorized users only.")
         return
     
-    welcome_text = """
-Welcome to Media Forwarder Bot
-
-This bot automatically forwards media files from one Telegram bot to another through your private channel.
-
-How it works:
-The bot monitors a source bot for new media files. When new media is detected, it downloads the file, uploads it to your private channel, then forwards it to a second bot. After forwarding, the media is deleted from your private channel to keep it clean.
-
-Supported Media Types:
-• Images are uploaded as photos with preview
-• Videos are uploaded with thumbnails and streaming support
-• Other files are uploaded as documents
-
-To get started, click Login Now to configure your bot settings.
-
-You can reset your settings anytime or extract your session string for backup.
-"""
-    await update.message.reply_text(welcome_text, reply_markup=get_welcome_keyboard())
+    welcome_text = (
+        "**Media Forwarder Bot**\n\n"
+        "Auto-forwards media between bots via your private channel.\n\n"
+        "Click **Login Now** to start."
+    )
+    await update.message.reply_text(welcome_text, reply_markup=get_welcome_keyboard(), parse_mode="Markdown")
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
