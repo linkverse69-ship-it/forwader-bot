@@ -21,11 +21,11 @@ from hachoir.parser import createParser
 
 
 MONGO_URI = "mongodb+srv://leakverse:leakverse@cluster0.vxosxyk.mongodb.net/?appName=Cluster0"
-TELEGRAM_BOT_TOKEN = "6863982081:AAF-Xa7S_OgJ5TRYT_Qth_wyQ7AdjuX_eGM"
+TELEGRAM_BOT_TOKEN = "8498816152:AAHc34lQ_s_wEOFA_jex8IItB8AfMpMB3nM"
 API_ID = 12380656
 API_HASH = "d927c13beaaf5110f25c505b7c071273"
 
-ADMIN_USER_IDS = [7737575998, 987654321]
+ADMIN_USER_IDS = [5604494762, 987654321]
 
 DOWNLOAD_DIR = "./downloads"
 VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".webm", ".avi", ".m4v"}
