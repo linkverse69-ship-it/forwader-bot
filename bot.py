@@ -329,9 +329,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             {"$set": user_data}
         )
         
-        # Check if session_string already exists
+        # Check if session_string already exists and is valid
+        is_valid_session = False
         if user_data.get("session_string"):
-            # Session exists, skip authentication
+            try:
+                temp_client = TelegramClient(StringSession(user_data["session_string"]), API_ID, API_HASH)
+                await temp_client.connect()
+                is_valid_session = await temp_client.is_user_authorized()
+                await temp_client.disconnect()
+            except Exception:
+                is_valid_session = False
+
+        if is_valid_session:
+            # Session exists and is valid, skip authentication
             await update.message.reply_text(
                 f"✅ Configuration Complete!\n\n"
                 f"Source: {user_data['bot_username']}\n"
@@ -343,6 +353,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             user_states[user_id] = UserState.IDLE
         else:
+            # Session invalid or missing, clear it and start authentication
+            if user_data.get("session_string"):
+                await users_collection.update_one(
+                    {"user_id": user_id},
+                    {"$unset": {"session_string": ""}}
+                )
             # No session, start Telegram authentication
             user_states[user_id] = UserState.WAITING_PHONE
             await update.message.reply_text("Enter your phone number with country code.\nExample: +1234567890")
@@ -775,11 +791,21 @@ async def start_media_forwarder(user_id: int, config: Dict):
         await client.connect()
         
         if not await client.is_user_authorized():
-            await bot_app.bot.send_message(user_id, "Session expired. Please login again.")
+            await bot_app.bot.send_message(user_id, "Session expired/invalid. Please Login Again.")
+            # Clear invalid session
+            await users_collection.update_one(
+                {"user_id": user_id},
+                {"$unset": {"session_string": ""}}
+            )
             del active_forwarders[user_id]
             return
     except Exception as e:
-        await bot_app.bot.send_message(user_id, f"Connection error: {str(e)}")
+        await bot_app.bot.send_message(user_id, f"Connection error: {str(e)}\nSession might be invalid due to multiple logins. Try resetting.")
+        if "AuthKeyDuplicatedError" in str(e) or "session file" in str(e):
+             await users_collection.update_one(
+                {"user_id": user_id},
+                {"$unset": {"session_string": ""}}
+            )
         del active_forwarders[user_id]
         return
     
